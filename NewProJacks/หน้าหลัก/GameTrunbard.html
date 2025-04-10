@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Turn-Based Game</title>
+  <style>
+    body { font-family: 'Arial', sans-serif; padding: 20px; background: #f2f2f2; }
+    .status { margin-bottom: 20px; }
+    .log { white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid #ccc; height: 150px; overflow-y: auto; }
+    button { margin: 5px 10px 5px 0; padding: 10px 15px; }
+    #winnerMessage { color: green; font-size: 1.5em; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>Turn-Based Game: ME vs AI</h1>
+
+  <div class="status">
+    <p><strong>ME</strong> - HP: <span id="meHP">100</span></p>
+    <p><strong>AI</strong> - HP: <span id="aiHP">100</span></p>
+    <p>เทิร์น: <span id="turnCount">1</span></p>
+    <p>ใช้สกิลโจมตี 1: <span id="meAttack1Count">0</span>/5</p>
+    <p>ใช้สกิลโจมตี 2: <span id="meAttack2Count">0</span>/5</p>
+    <p>ใช้สกิลฮีล: <span id="meHealCount">0</span>/3</p>
+  </div>
+
+  <div>
+    <button onclick="useSkill(1)">ใช้สกิล 1 (โจมตี 15 DMG)</button>
+    <button onclick="useSkill(2)">ใช้สกิล 2 (โจมตี 20 DMG)</button>
+    <button onclick="useSkill(3)">ใช้สกิล 3 (ฮีล +20 HP)</button>
+    <button onclick="resetGame()">เริ่มใหม่</button>
+  </div>
+
+  <h3>Log:</h3>
+  <div class="log" id="log"></div>
+
+  <h2 id="winnerMessage"></h2>
+
+  <script>
+    let meHP = 100;
+    let aiHP = 100;
+    let turnCount = 1;
+    let playerTurn = 'ME';
+    let meUsed = false;
+    let aiUsed = false;
+
+    // จำนวนการใช้สกิล
+    let meAttack1Count = 0;
+    let meAttack2Count = 0;
+    let meHealCount = 0;
+
+    const maxAttack1Count = 5;  // จำกัดการใช้สกิลโจมตี 1
+    const maxAttack2Count = 5;  // จำกัดการใช้สกิลโจมตี 2
+    const maxHealCount = 3;     // จำกัดการใช้สกิลฮีล
+
+    const meSkills = {
+      1: 15,  // โจมตี 1
+      2: 20,  // โจมตี 2
+      3: -20  // ฮีล
+    };
+
+    const aiSkills = {
+      1: 15,
+      2: 20,
+      3: -20
+    };
+
+    function useSkill(skillNum) {
+      if (playerTurn !== 'ME') return;
+
+      if (skillNum === 1) {
+        if (meAttack1Count >= maxAttack1Count) {
+          log("❌ คุณใช้สกิลโจมตี 1 หมดแล้ว!");
+          return;
+        }
+      } else if (skillNum === 2) {
+        if (meAttack2Count >= maxAttack2Count) {
+          log("❌ คุณใช้สกิลโจมตี 2 หมดแล้ว!");
+          return;
+        }
+      } else if (skillNum === 3) {
+        if (meHealCount >= maxHealCount) {
+          log("❌ คุณใช้สกิลฮีลหมดแล้ว!");
+          return;
+        }
+      }
+
+      const effect = meSkills[skillNum];
+
+      if (effect < 0) {
+        meHP -= effect;
+        meHP = Math.min(meHP, 100);  // จำกัดไม่ให้เกิน 100 HP
+        log(`🟢 ME ใช้สกิล ${skillNum} ฟื้นฟู ${-effect} HP`);
+        meHealCount++;
+        document.getElementById('meHealCount').innerText = meHealCount;
+      } else {
+        aiHP -= effect;
+        aiHP = Math.max(aiHP, 0);
+        log(`🔴 ME ใช้สกิล ${skillNum} โจมตี AI ได้ ${effect} DMG`);
+        if (skillNum === 1) {
+          meAttack1Count++;
+          document.getElementById('meAttack1Count').innerText = meAttack1Count;
+        } else if (skillNum === 2) {
+          meAttack2Count++;
+          document.getElementById('meAttack2Count').innerText = meAttack2Count;
+        }
+      }
+
+      updateHP();
+      meUsed = true;
+      playerTurn = 'AI';
+
+      setTimeout(aiTurn, 1000);
+    }
+
+    function aiTurn() {
+      if (aiHP <= 0 || meHP <= 0) return;
+
+      const skillNum = Math.floor(Math.random() * 3) + 1;
+      const effect = aiSkills[skillNum];
+
+      if (effect < 0) {
+        aiHP -= effect;
+        aiHP = Math.min(aiHP, 100);
+        log(`🟢 AI ใช้สกิล ${skillNum} ฟื้นฟู ${-effect} HP`);
+      } else {
+        meHP -= effect;
+        meHP = Math.max(meHP, 0);
+        log(`🔴 AI ใช้สกิล ${skillNum} โจมตี ME ได้ ${effect} DMG`);
+      }
+
+      updateHP();
+      aiUsed = true;
+      playerTurn = 'ME';
+
+      if (meUsed && aiUsed) {
+        turnCount++;
+        meUsed = false;
+        aiUsed = false;
+        document.getElementById('turnCount').innerText = turnCount;
+        log(`--- จบเทิร์น ${turnCount - 1} ---`);
+      }
+
+      checkGameOver();
+    }
+
+    function updateHP() {
+      document.getElementById('meHP').innerText = meHP;
+      document.getElementById('aiHP').innerText = aiHP;
+    }
+
+    function log(message) {
+      const logBox = document.getElementById('log');
+      logBox.textContent += message + '\n';
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function checkGameOver() {
+      if (meHP <= 0 || aiHP <= 0) {
+        const winner = meHP <= 0 ? 'AI' : 'ME';
+        log(`🎉 เกมจบ! ผู้ชนะคือ: ${winner}`);
+        document.getElementById('winnerMessage').innerText = `🎉 ผู้ชนะคือ: ${winner} 🎉`;
+        document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+      }
+    }
+
+    function resetGame() {
+      meHP = 100;
+      aiHP = 100;
+      turnCount = 1;
+      playerTurn = 'ME';
+      meUsed = false;
+      aiUsed = false;
+
+      meAttack1Count = 0;
+      meAttack2Count = 0;
+      meHealCount = 0;
+
+      document.getElementById('meHP').innerText = meHP;
+      document.getElementById('aiHP').innerText = aiHP;
+      document.getElementById('turnCount').innerText = turnCount;
+      document.getElementById('meAttack1Count').innerText = meAttack1Count;
+      document.getElementById('meAttack2Count').innerText = meAttack2Count;
+      document.getElementById('meHealCount').innerText = meHealCount;
+      document.getElementById('winnerMessage').innerText = '';
+      document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+      document.getElementById('log').textContent = '';  // Clear log
+    }
+  </script>
+
+</body>
+</html>
